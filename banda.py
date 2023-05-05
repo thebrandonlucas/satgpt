@@ -62,6 +62,8 @@ def summarize_audio():
     # Return the response to the client
     return jsonify({'message': message})
 
+
+
 # Start the Flask app on localhost:5000
 if __name__ == '__main__':
     app.run(debug=True)

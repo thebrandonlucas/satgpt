@@ -1,5 +1,6 @@
 import requests
 from dotenv import load_dotenv
+import os
 
 # bitcoin lightning vars
 LND_API_ENDPOINT = os.getenv('LND_API_ENDPOINT')
@@ -13,13 +14,19 @@ def fetch(url, method='GET', headers=None, params=None, data=None):
     if headers is not None:
         default_headers.update(headers)
 
+    print(LND_API_ENDPOINT)
+    print(MACAROON)
+
     # Make request
     response = requests.request(
         method=method,
         url=url,
         headers=default_headers,
         params=params,
-        json=data
+        json=data,
+        # NOTE: Do not use verify=False in production!
+        # TODO: only use verify=False in dev
+        verify=False
     )
 
     # Check for errors
@@ -42,7 +49,6 @@ def add_invoice(amount, memo):
 def lookup_invoice(r_hash):
     # Construct the request
     url = f'{LND_API_ENDPOINT}/v1/invoice/{r_hash}'
-
     # Make the request
     return fetch(url)
 

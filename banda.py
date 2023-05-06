@@ -13,17 +13,16 @@ openai.api_key = os.getenv('OPENAI_API_KEY')
 # Set up the Flask app
 app = Flask(__name__)
 
-@app.route('/generate_invoice', methods=['POST'])
-def generate_invoice():
-    # Parse the request data
-    data = request.get_json()
-    query = data['query']
+invoice_query = {
+    "query": "What is the meaning of life?",
+    "invoice": "lnbc..."
+}
 
+def generate_invoice(query):
     amount = price(query)
     result = add_invoice(amount, f"Query: {query}")
-
     # result contains the payment request and the r_hash
-    return jsonify(result)
+    return result
 
 def check_payment(r_hash):
     # Call the OpenAI API to generate a response
@@ -32,7 +31,6 @@ def check_payment(r_hash):
     paid = invoice['settled']
     return paid
 
-
 # standard chatgpt query
 @app.route('/query', methods=['POST'])
 def query_chatbot():
@@ -40,26 +38,36 @@ def query_chatbot():
     data = request.get_json()
     query = data['query']
 
-    amount = price(query)
-    invoice_res = add_invoice(amount, f"Query: {query}")
+    # check if we're in the middle of a payment 
+    if 'r_hash' in data:
+        r_hash = data['r_hash']
+        paid = check_payment(r_hash)
+        if paid:
+            # Call the OpenAI API to generate a response
+            summary = openai.Completion.create(
+                # davinci is the standard gpt3 model
+                model="davinci",
+                prompt=query,
+                max_tokens=len(query),
+                n=1,
+                stop=None,
+                temperature=0.7,
+            )
 
-    print(invoice_res)
+            # Extract the response text from the API response
+            message = summary.choices[0].text.strip()
 
-    # Call the OpenAI API to generate a response
-    # summary = openai.Completion.create(
-    #     engine=model_engine,
-    #     prompt=prompt,
-    #     max_tokens=60,
-    #     n=1,
-    #     stop=None,
-    #     temperature=0.7,
-    # )
+            # Return the response to the client
+            response = jsonify({'message': message})
+            response.status_code = 200
+            return response
+        else:
+            # Return the response to the client
+            invoice = generate_invoice(query)
+            response = jsonify({'message': 'Payment Required', 'invoice': invoice})
+            response.status_code = 402
+            return response
 
-    # # Extract the response text from the API response
-    # message = summary.choices[0].text.strip()
-
-    # Return the response to the client
-    return jsonify({'message': 'message'})
 
 # TODO: send file data in request 
 # translate audio files (TODO: list which audio types are supported)

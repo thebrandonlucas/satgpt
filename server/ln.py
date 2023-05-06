@@ -14,9 +14,6 @@ def fetch(url, method='GET', headers=None, params=None, data=None):
     if headers is not None:
         default_headers.update(headers)
 
-    print(LND_API_ENDPOINT)
-    print(MACAROON)
-
     # Make request
     response = requests.request(
         method=method,

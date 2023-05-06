@@ -1,3 +1,4 @@
 .env
 Pipfile.lock
 *.mp3
+.vscode

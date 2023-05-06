@@ -3,20 +3,16 @@ from flask import Flask, request, jsonify
 from dotenv import load_dotenv
 import os
 from ln import add_invoice, lookup_invoice
-from util import price
+from util import price, base64_to_hex
 
 # Load env vars
 load_dotenv()
 # Set up the OpenAI API credentials
-openai.api_key = os.getenv('OPENAI_API_KEY')
+openai.api_key = os.getenv("OPENAI_API_KEY")
 
 # Set up the Flask app
 app = Flask(__name__)
 
-invoice_query = {
-    "query": "What is the meaning of life?",
-    "invoice": "lnbc..."
-}
 
 def generate_invoice(query):
     amount = price(query)
@@ -24,52 +20,79 @@ def generate_invoice(query):
     # result contains the payment request and the r_hash
     return result
 
+
 def check_payment(r_hash):
     # Call the OpenAI API to generate a response
     invoice = lookup_invoice(r_hash)
     # Extract the response text from the API response
-    paid = invoice['settled']
-    return paid
+    paid = invoice["settled"]
+    return (paid, invoice)
+
 
 # standard chatgpt query
-@app.route('/query', methods=['POST'])
+@app.route("/query", methods=["POST"])
 def query_chatbot():
     # Parse the request data
     data = request.get_json()
-    query = data['query']
+    query = data["query"]
 
-    # check if we're in the middle of a payment 
-    if 'r_hash' in data:
-        r_hash = data['r_hash']
-        paid = check_payment(r_hash)
+    # if query is not in data, return error
+    if not query:
+        response = jsonify({"message": "No query provided"})
+        response.status_code = 400
+        print(response)
+        return response
+
+    # check if we're in the middle of a payment
+    if "r_hash" in data:
+        r_hash = data["r_hash"]
+        (paid, invoice) = check_payment(r_hash)
+        print("invoice", invoice)
         if paid:
             # Call the OpenAI API to generate a response
-            summary = openai.Completion.create(
-                # davinci is the standard gpt3 model
-                model="davinci",
-                prompt=query,
-                max_tokens=len(query),
-                n=1,
-                stop=None,
-                temperature=0.7,
+            completion = openai.ChatCompletion.create(
+                model="gpt-3.5-turbo", messages=[{"role": "user", "content": query}]
             )
 
             # Extract the response text from the API response
-            message = summary.choices[0].text.strip()
+            message = completion.choices[0].message.content.strip()
 
             # Return the response to the client
-            response = jsonify({'message': message})
+            response = jsonify({"message": message})
             response.status_code = 200
+            print(response)
             return response
         else:
             # Return the response to the client
-            invoice = generate_invoice(query)
-            response = jsonify({'message': 'Payment Required', 'invoice': invoice})
+            response = jsonify(
+                {
+                    "message": "Payment Required",
+                    "payment_request": invoice["payment_request"],
+                    "memo": invoice["memo"],
+                }
+            )
             response.status_code = 402
+            print(response)
             return response
+    else:
+        # generate an invoice
+        invoice = generate_invoice(query)
+        # Return the response to the client
+        # convert r_hash from base64 to hex because for some reason LND returns it in base64
+        r_hash = base64_to_hex(invoice["r_hash"])
+        response = jsonify(
+            {
+                "message": "Payment Required",
+                "invoice": invoice["payment_request"],
+                "r_hash": r_hash,
+            }
+        )
+        response.status_code = 402
+        print(response)
+        return response
 
 
-# TODO: send file data in request 
+# TODO: send file data in request
 # translate audio files (TODO: list which audio types are supported)
 # @app.route('/audio', methods=['GET'])
 # def summarize_audio():
@@ -98,7 +121,6 @@ def query_chatbot():
 #     return jsonify({'message': message})
 
 
-
 # Start the Flask app on localhost:5000
-if __name__ == '__main__':
+if __name__ == "__main__":
     app.run(debug=True)

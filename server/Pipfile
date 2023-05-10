@@ -7,7 +7,8 @@ name = "pypi"
 openai = "*"
 flask = "*"
 python-dotenv = "*"
-pyscopg2 = "*"
+setuptools = "*"
+psycopg2-binary = "*"
 
 [dev-packages]
 

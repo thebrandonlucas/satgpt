@@ -3,6 +3,13 @@ from flask import Flask, request, jsonify
 from dotenv import load_dotenv
 import os
 from ln import add_invoice, lookup_invoice
+from db.db import (
+    check_invoice_used,
+    create_invoices_table,
+    set_invoice_used,
+    add_r_hash_and_query,
+    lookup_query,
+)
 from util import price, base64_to_hex
 
 # Load env vars
@@ -16,7 +23,7 @@ app = Flask(__name__)
 
 def generate_invoice(query):
     amount = price(query)
-    result = add_invoice(amount, f"Query: {query}")
+    result = add_invoice(amount, f"GPT Query: {query[:20]}...")
     # result contains the payment request and the r_hash
     return result
 
@@ -34,10 +41,9 @@ def check_payment(r_hash):
 def query_chatbot():
     # Parse the request data
     data = request.get_json()
-    query = data["query"]
 
     # if query is not in data, return error
-    if not query:
+    if "query" not in data and "r_hash" not in data:
         response = jsonify({"message": "No query provided"})
         response.status_code = 400
         print(response)
@@ -49,6 +55,20 @@ def query_chatbot():
         (paid, invoice) = check_payment(r_hash)
         print("invoice", invoice)
         if paid:
+            # Check that the invoice hasn't been used before
+            if check_invoice_used(r_hash):
+                # Return the response to the client
+                response = jsonify({"message": "Payment already used"})
+                response.status_code = 400
+                print(response)
+                return response
+            else:
+                # mark invoice as used
+                set_invoice_used(r_hash)
+
+            # lookup the query associated with the r_hash
+            query = lookup_query(r_hash)
+
             # Call the OpenAI API to generate a response
             completion = openai.ChatCompletion.create(
                 model="gpt-3.5-turbo", messages=[{"role": "user", "content": query}]
@@ -75,11 +95,15 @@ def query_chatbot():
             print(response)
             return response
     else:
+        # If r_hash isn't in request, generate an invoice
+        query = data["query"]
         # generate an invoice
         invoice = generate_invoice(query)
         # Return the response to the client
         # convert r_hash from base64 to hex because for some reason LND returns it in base64
         r_hash = base64_to_hex(invoice["r_hash"])
+        # add r_hash and query to database
+        add_r_hash_and_query(r_hash, query)
         response = jsonify(
             {
                 "message": "Payment Required",
@@ -124,3 +148,4 @@ def query_chatbot():
 # Start the Flask app on localhost:5000
 if __name__ == "__main__":
     app.run(debug=True)
+    create_invoices_table()

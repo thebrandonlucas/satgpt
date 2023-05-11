@@ -1,5 +1,17 @@
 <script lang="ts">
+  import {
+    queryServer,
+    type InvoiceResponse,
+    type ChatGPTResponse,
+  } from "../poll";
+
   let selectedOption = ""; // Holds the selected option value
+  let prompt = "";
+
+  // paymentRequest and paymentHash are two different names for invoice and r_hash
+  let paymentRequest = "";
+  let paymentHash = "";
+  let chatGPTMessage = "";
 
   // Function to handle dropdown selection
   function handleOptionSelect(event: Event) {
@@ -7,22 +19,40 @@
     selectedOption = target.value;
   }
 
-  function handleSubmit(event: Event) {
+  async function handleSubmit(event: Event) {
     event.preventDefault();
-    const input = document.getElementById("input") as HTMLInputElement;
-    const prompt = input.value;
-    console.log(prompt);
+
+    // TODO: allow user to select model
+    const { invoice, r_hash } = (await queryServer(prompt)) as InvoiceResponse;
+    paymentRequest = invoice;
+    paymentHash = r_hash;
+  }
+
+  async function checkPaid() {
+    const { message, status } = (await queryServer(
+      paymentHash,
+      false
+    )) as ChatGPTResponse;
+
+    console.log({ message, status });
+
+    // Show the chatgpt response (or a payment required error)
+    chatGPTMessage = message;
   }
 </script>
 
-<main class="bitcoin-orange-theme">
+<main>
   <h1>SatGPT</h1>
 
   <form on:submit={handleSubmit}>
-    <label for="input">Input:</label>
-    <input type="text" id="input" placeholder="Prompt" />
+    <input
+      type="text"
+      id="input"
+      placeholder="Send a message"
+      bind:value={prompt}
+    />
 
-    <label for="dropdown">Dropdown:</label>
+    <label for="dropdown">Model:</label>
     <select id="dropdown" on:change={handleOptionSelect}>
       <option value="">Select an option</option>
       <option value="GPT-3.5">GPT-3.5</option>
@@ -33,6 +63,15 @@
   </form>
 
   <p>Selected Option: {selectedOption}</p>
+
+  {#if paymentRequest}
+    <p class="break-all">Invoice: {paymentRequest}</p>
+    <button on:click={checkPaid}>Check payment</button>
+  {/if}
+
+  {#if chatGPTMessage}
+    <p>{chatGPTMessage}</p>
+  {/if}
 </main>
 
 <style>

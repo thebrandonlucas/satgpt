@@ -9,6 +9,7 @@ flask = "*"
 python-dotenv = "*"
 setuptools = "*"
 psycopg2-binary = "*"
+flask-cors = "*"
 
 [dev-packages]
 

@@ -1,5 +1,6 @@
 import openai
-from flask import Flask, request, jsonify
+from flask import Flask, Response, request, jsonify
+from flask_cors import CORS
 from dotenv import load_dotenv
 import os
 from ln import add_invoice, lookup_invoice
@@ -19,6 +20,8 @@ openai.api_key = os.getenv("OPENAI_API_KEY")
 
 # Set up the Flask app
 app = Flask(__name__)
+
+cors = CORS(app, resources={r"/*": {"origins": "*"}})
 
 
 def generate_invoice(query):
@@ -91,9 +94,8 @@ def query_chatbot():
                     "memo": invoice["memo"],
                 }
             )
-            response.status_code = 402
             print(response)
-            return response
+            return response, 402
     else:
         # If r_hash isn't in request, generate an invoice
         query = data["query"]
@@ -111,7 +113,6 @@ def query_chatbot():
                 "r_hash": r_hash,
             }
         )
-        response.status_code = 402
         print(response)
         return response
 

@@ -5,7 +5,7 @@
     type ChatGPTResponse,
   } from "../poll";
 
-  let selectedOption = ""; // Holds the selected option value
+  let selectedModel = "gpt-3.5-turbo"; // Holds the selected option value
   let prompt = "";
 
   // paymentRequest and paymentHash are two different names for invoice and r_hash
@@ -13,28 +13,21 @@
   let paymentHash = "";
   let chatGPTMessage = "";
 
-  // Function to handle dropdown selection
-  function handleOptionSelect(event: Event) {
-    const target = event.target as HTMLSelectElement;
-    selectedOption = target.value;
-  }
-
   async function handleSubmit(event: Event) {
     event.preventDefault();
 
-    // TODO: allow user to select model
-    const { invoice, r_hash } = (await queryServer(prompt)) as InvoiceResponse;
+    const { invoice, r_hash } = (await queryServer({
+      query: prompt,
+      model_selected: selectedModel,
+    })) as InvoiceResponse;
     paymentRequest = invoice;
     paymentHash = r_hash;
   }
 
   async function checkPaid() {
-    const { message, status } = (await queryServer(
-      paymentHash,
-      false
-    )) as ChatGPTResponse;
-
-    console.log({ message, status });
+    const { message } = (await queryServer({
+      r_hash: paymentHash,
+    })) as ChatGPTResponse;
 
     // Show the chatgpt response (or a payment required error)
     chatGPTMessage = message;
@@ -53,16 +46,15 @@
     />
 
     <label for="dropdown">Model:</label>
-    <select id="dropdown" on:change={handleOptionSelect}>
-      <option value="">Select an option</option>
-      <option value="GPT-3.5">GPT-3.5</option>
+    <select id="dropdown" bind:value={selectedModel}>
+      <option value="gpt-3.5-turbo">GPT-3.5</option>
       <option value="GPT-4">GPT-4</option>
     </select>
 
     <button type="submit">Submit</button>
   </form>
 
-  <p>Selected Option: {selectedOption}</p>
+  <p>Selected Option: {selectedModel}</p>
 
   {#if paymentRequest}
     <p class="break-all">Invoice: {paymentRequest}</p>

@@ -24,7 +24,6 @@ app = Flask(__name__)
 
 cors = CORS(app, resources={r"/*": {"origins": "*"}})
 
-
 def generate_invoice(query):
     amount = price(query)
     result = add_invoice(amount, f"GPT Query: {query[:20]}...")
@@ -71,9 +70,15 @@ def query_chatbot():
                 # lookup the query associated with the r_hash
                 query = lookup_query(r_hash)
 
+                # check if model is specified
+                if "model_selected" in data:
+                    gpt_model = data["model_selected"]
+                else:
+                    gpt_model = "gpt-3.5-turbo"
+
                 # Call the OpenAI API to generate a response
                 completion = openai.ChatCompletion.create(
-                    model="gpt-3.5-turbo", messages=[{"role": "user", "content": query}]
+                    model= gpt_model, messages=[{"role": "user", "content": query}]
                 )
 
                 # Extract the response text from the API response
@@ -109,6 +114,7 @@ def query_chatbot():
                 "r_hash": r_hash,
             }
             return jsonify(response)
+
     except Exception as e:
         # Return an error response if an exception occurs
         error_message = f"An error occurred: {str(e)}"

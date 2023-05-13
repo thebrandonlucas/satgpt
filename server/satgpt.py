@@ -14,7 +14,7 @@ from db.db import (
 from util import price, base64_to_hex
 
 # Load env vars
-load_dotenv()
+load_dotenv(verbose=True, dotenv_path=".env", override=True)
 # Set up the OpenAI API credentials
 openai.api_key = os.getenv("OPENAI_API_KEY")
 

@@ -17,8 +17,7 @@ export async function queryServer(
   queryData: string,
   isRequestingInvoice: boolean = true
 ): Promise<InvoiceResponse | ChatGPTResponse> {
-  const baseUrl =
-    import.meta.env.VITE_API_URL || "https://127.0.0.1:5000/query";
+  const baseUrl = import.meta.env.VITE_API_URL || "http://127.0.0.1:5000/query";
   const url = `${baseUrl}/query`;
   const headers = { "Content-Type": "application/json" };
   const data = isRequestingInvoice

@@ -2,8 +2,9 @@ import traceback
 import openai
 from flask import Flask, Response, request, jsonify
 from flask_cors import CORS
-from dotenv import load_dotenv
 import os
+from dotenv import load_dotenv
+load_dotenv(verbose=True, dotenv_path=".env", override=True)
 from ln import add_invoice, lookup_invoice
 from db.db import (
     check_invoice_used,
@@ -14,8 +15,7 @@ from db.db import (
 )
 from util import price, base64_to_hex
 
-# Load env vars
-load_dotenv(verbose=True, dotenv_path=".env", override=True)
+
 # Set up the OpenAI API credentials
 openai.api_key = os.getenv("OPENAI_API_KEY")
 
@@ -153,5 +153,7 @@ def query_chatbot():
 
 # Start the Flask app on localhost:5000
 if __name__ == "__main__":
-    app.run(debug=True)
-    create_invoices_table()
+    try: 
+        create_invoices_table()
+    finally:
+        app.run(debug=True)
